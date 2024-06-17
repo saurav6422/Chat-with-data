@@ -6,7 +6,7 @@ Users can upload their data files (CSV or Excel) and interact with the data usin
 note: Made for ECl Coal mining company .
 ## Table of Contents
 
-- [Website Link](#Website Link)
+- [Website Link](#websiteLink)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
