@@ -43,6 +43,7 @@ https://chat-with-data-saurav6422.streamlit.app/
 - Python 3.7+
 - Streamlit
 - Pandas
+- Pytorch
 
 ## Installation
 
@@ -87,6 +88,7 @@ This project is licensed under the GNU General Public License v2.0. See the [LIC
 
 - [Streamlit](https://www.streamlit.io/)
 - [Pandas](https://pandas.pydata.org/)
+- [PyTorch]https://pytorch.org/
 - [Eastern Coalfields](https://www.easterncoal.nic.in/)
 
 ## Contact
