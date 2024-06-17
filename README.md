@@ -90,5 +90,5 @@ This project is licensed under the GNU General Public License v2.0. See the [LIC
 
 ## Contact
 
-For any questions or suggestions, please contact [saurav.bakuli777@gmail.com].
+For any questions or suggestions, please contact saurav.bakuli777@gmail.com | [Linkedin](https://www.linkedin.com/in/sauravbakuli/).
 
