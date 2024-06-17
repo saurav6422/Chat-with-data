@@ -6,7 +6,7 @@ Users can upload their data files (CSV or Excel) and interact with the data usin
 note: Made for ECl Coal mining company .
 ## Table of Contents
 
-- [Website Link](#websiteLink)
+- [Link](#link)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -17,7 +17,7 @@ note: Made for ECl Coal mining company .
 - [Acknowledgements](#acknowledgements)
 - [Contact](#contact)
 
-## Website Link
+## Link
 
 https://chat-with-data-sauravkb.streamlit.app/
 
