@@ -49,7 +49,8 @@ expander_content = """
 """
 expander_content2 = """
 
-This Streamlit application provides a chatbot interface for interacting with datasets. Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
+This Streamlit application provides a chatbot interface for interacting with datasets. 
+Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
 
 **Features:**
 - **File Upload**: Upload CSV or Excel files containing your dataset.
