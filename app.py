@@ -81,7 +81,7 @@ def load_model_and_tokenizer():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = BertForSequenceClassification.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     label_encoder = load_label_encoder(csv_path)
 
     model.to(device)
