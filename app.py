@@ -10,6 +10,7 @@ import base64
 from io import BytesIO
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer
+from transformers import AutoTokenizer
 from sklearn.preprocessing import LabelEncoder
 import re
 
@@ -80,7 +81,7 @@ def load_model_and_tokenizer():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = BertForSequenceClassification.from_pretrained(model_path)
-    tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     label_encoder = load_label_encoder(csv_path)
 
     model.to(device)
@@ -98,7 +99,7 @@ def predict_query(model, tokenizer, label_encoder, query, device):
     if not isinstance(query, str):
         raise ValueError(f"Expected query to be a string, but got {type(query)}")
     print(f"Query: {query}")  # Debugging statement
-    inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True)
+    inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True, max_length=512)
     inputs = {key: val.to(device) for key, val in inputs.items()}
     with torch.no_grad():
         outputs = model(**inputs)
