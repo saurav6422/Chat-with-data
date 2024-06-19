@@ -73,6 +73,26 @@ Users can upload their data files (CSV or Excel) and interact with the data usin
 """
 df = None
 @st.cache_resource
+def load_model_and_tokenizer():
+    model_path = 'model_3'
+    tokenizer_path = 'tokenizer_3'
+    csv_path = 'dataset/queries.csv'
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = BertForSequenceClassification.from_pretrained(model_path)
+    tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
+    label_encoder = load_label_encoder(csv_path)
+
+    model.to(device)
+    return model, tokenizer, label_encoder, device
+
+
+def load_label_encoder(csv_path):
+    data = pd.read_csv(csv_path)
+    label_encoder = LabelEncoder()
+    label_encoder.fit(data['action'])
+    return label_encoder
+
 def predict_query(model, tokenizer, label_encoder, query, device):
     model.eval()
     if not isinstance(query, str):
@@ -85,20 +105,6 @@ def predict_query(model, tokenizer, label_encoder, query, device):
     predicted = torch.argmax(outputs.logits, dim=1).item()
     return label_encoder.inverse_transform([predicted])[0]
 
-def load_label_encoder(csv_path):
-    data = pd.read_csv(csv_path)
-    label_encoder = LabelEncoder()
-    label_encoder.fit(data['action'])
-    return label_encoder
-
-def predict_query(model, tokenizer, label_encoder, query, device):
-    model.eval()
-    inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True)
-    inputs = {key: val.to(device) for key, val in inputs.items()}
-    with torch.no_grad():
-        outputs = model(**inputs)
-    predicted = torch.argmax(outputs.logits, dim=1).item()
-    return label_encoder.inverse_transform([predicted])[0]
 
 def get_image_base64(image_path):
     img = Image.open(image_path)
