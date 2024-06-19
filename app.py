@@ -187,7 +187,7 @@ if uploaded_file is not None:
     try:
         df = load_dataset(uploaded_file)
         st.write("Dataset loaded successfully")
-        with st.expander("🔎 Dataframe Preview"):
+        with st.expander("🔎 File Preview"):
             preview_rows = st.slider("Number of rows to display", min_value=1, max_value=len(df), value=5)
             st.dataframe(df.head(preview_rows))
     except Exception as e:
