@@ -13,6 +13,7 @@ from transformers import BertForSequenceClassification, BertTokenizer
 from transformers import AutoTokenizer
 from sklearn.preprocessing import LabelEncoder
 import re
+import difflib
 
 expander_content = """
 
@@ -206,8 +207,32 @@ def rename_column(dataframe, old_col_name, new_col_name):
     dataframe.rename(columns={old_col_name: new_col_name}, inplace=True)
     return dataframe
 
-def create_plot(dataframe, plot_type, x_col, y_col):
+def find_closest_column(df, query_column):
+    columns_lower = [col.lower() for col in df.columns]
+    query_column_lower = query_column.lower()
+    
+    if query_column_lower in columns_lower:
+        return df.columns[columns_lower.index(query_column_lower)]
+    
+    closest_match = difflib.get_close_matches(query_column_lower, columns_lower, n=1, cutoff=0.6)
+    if closest_match:
+        return df.columns[columns_lower.index(closest_match[0])]
+    return None
+
+def create_plot(dataframe, plot_type, x_col, y_col=None):
     plt.figure(figsize=(10, 6))
+    
+    x_col = find_closest_column(dataframe, x_col)
+    if x_col is None:
+        st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{x_col}' in the dataset.</p>", unsafe_allow_html=True)
+        return
+    
+    if y_col:
+        y_col = find_closest_column(dataframe, y_col)
+        if y_col is None:
+            st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{y_col}' in the dataset.</p>", unsafe_allow_html=True)
+            return
+
     if plot_type == "scatter":
         sns.scatterplot(data=dataframe, x=x_col, y=y_col)
     elif plot_type == "line":
@@ -215,12 +240,17 @@ def create_plot(dataframe, plot_type, x_col, y_col):
     elif plot_type == "histogram":
         sns.histplot(data=dataframe[x_col])
     elif plot_type == "box":
-        sns.boxplot(data=dataframe, x=x_col)
+        sns.boxplot(data=dataframe, x=x_col, y=y_col)
     elif plot_type == "bar":
-        sns.barplot(data=df, x=x_col, y=y_col)
+        sns.barplot(data=dataframe, x=x_col, y=y_col)
     elif plot_type == "pie":
         pie_data = dataframe[x_col].value_counts()
         plt.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%')
+    
+    plt.title(f"{plot_type.capitalize()} Plot of {x_col}" + (f" and {y_col}" if y_col else ""))
+    plt.xlabel(x_col)
+    if y_col:
+        plt.ylabel(y_col)
     
     plot_buffer = BytesIO()
     plt.savefig(plot_buffer, format='png')
@@ -233,6 +263,8 @@ def create_plot(dataframe, plot_type, x_col, y_col):
         file_name=f"{plot_type}_plot.png",
         mime="image/png"
     )
+
+    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Plot created using column(s): {x_col}" + (f" and {y_col}" if y_col else "") + "</p>", unsafe_allow_html=True)
 
 
 def extract_filter_params(query):
@@ -444,15 +476,46 @@ if query:
                 #st.write(f"Error fetching unique values: {e}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
         elif action == "plot":
-             plot_type = st.selectbox("Choose plot type", ["scatter", "line", "histogram", "box", "bar" , "pie"])
-             x_col = st.selectbox("Choose X-axis column", df.columns)
-             y_col = st.selectbox("Choose Y-axis column", df.columns) if plot_type != "pie" else None
-             if st.button("Create Plot"):
-                 try:
-                     create_plot(df, plot_type, x_col, y_col)
-                 except Exception as e:
-                     #st.write(f"Error creating plot: {e}")
-                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error occured please try again.</p>", unsafe_allow_html=True)
+            plot_query = query.lower()
+            
+            plot_types = {
+                'bar': 'bar',
+                'pie': 'pie',
+                'line': 'line',
+                'scatter': 'scatter',
+                'histogram': 'histogram',
+                'box': 'box'
+            }
+            
+            # Determine plot type
+            plot_type = next((plot_types[key] for key in plot_types if key in plot_query), None)
+            
+            if plot_type:
+                # Extract column names
+                columns = re.findall(r'between\s+(\w+)\s+and\s+(\w+)', plot_query)
+                if not columns and 'of' in plot_query:
+                    columns = re.findall(r'of\s+(\w+)', plot_query)
+                
+                if columns:
+                    if plot_type == 'pie':
+                        x_col = columns[0]
+                        y_col = None
+                    elif len(columns[0]) == 2:
+                        x_col, y_col = columns[0]
+                    elif len(columns[0]) == 1:
+                        x_col = columns[0][0]
+                        y_col = None
+                    else:
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Couldn't parse column names from the query.</p>", unsafe_allow_html=True)
+
+                    try:
+                        create_plot(df, plot_type, x_col, y_col)
+                    except Exception as e:
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating plot: {str(e)}</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Couldn't parse column names from the query.</p>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported plot type. Please try again.</p>", unsafe_allow_html=True)
         elif action == "add column":
             new_col_name = st.text_input("New Column Name")
             existing_col = st.selectbox("Choose Existing Column", df.columns)
