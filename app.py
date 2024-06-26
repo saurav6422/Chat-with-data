@@ -76,16 +76,13 @@ df = None
 @st.cache_resource
 def load_model_and_tokenizer():
     model_path = 'model_3'
-    #tokenizer_path = 'tokenizer_3'
+    tokenizer_path = 'tokenizer_3'
     csv_path = 'dataset/queries.csv'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = BertForSequenceClassification.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
     label_encoder = load_label_encoder(csv_path)
-
-    model.to(device)
-    return model, tokenizer, label_encoder, device
 
     model.to(device)
     return model, tokenizer, label_encoder, device
