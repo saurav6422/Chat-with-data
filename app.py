@@ -391,16 +391,7 @@ if query:
         action = predict_query(model, tokenizer, label_encoder, query, device)
         action = action.strip().lower().replace('"', '')
         #st.write(f"Predicted Action: {action}")
-        if action not in ["show data", "describe", "filter", "plot", "count rows", 
-                      "maximum", "minimum", "average", "sum", "count value", "missing values", 
-                      "unique values", "add column", "drop column", "rename column", "group by", 
-                      "heat map", "sample data", "concat data", "join data", "rolling window", 
-                      "apply function"]:
-                #st.write(f"Unrecognized action ,for query: {query}")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
-
-
-        elif action == "show columns":
+        if action == "show columns":
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>The columns in file are :</p>", unsafe_allow_html=True)
             st.write(df.columns.tolist())
         elif action == "show data":
@@ -699,3 +690,12 @@ if query:
                 except Exception as e:
                     #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
+        else:
+            if action not in ["show data", "describe", "filter", "plot", "count rows", 
+                      "maximum", "minimum", "average", "sum", "count value", "missing values", 
+                      "unique values", "add column", "drop column", "rename column", "group by", 
+                      "heat map", "sample data", "concat data", "join data", "rolling window", 
+                      "apply function"]:
+                #st.write(f"Unrecognized action ,for query: {query}")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
+
