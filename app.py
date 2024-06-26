@@ -15,6 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 import re
 import difflib
 
+
 expander_content = """
 
 1. **Mathematical Operations:**
@@ -51,9 +52,7 @@ expander_content = """
 """
 expander_content2 = """
 
-This Streamlit application provides a chatbot interface for interacting with datasets. 
-
-Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
+This Streamlit application provides a chatbot interface for interacting with datasets. Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
 
 **Features:**
 - **File Upload**: Upload CSV or Excel files containing your dataset.
@@ -77,7 +76,7 @@ df = None
 @st.cache_resource
 def load_model_and_tokenizer():
     model_path = 'model_3'
-    tokenizer_path = 'tokenizer_3'
+    #tokenizer_path = 'tokenizer_3'
     csv_path = 'dataset/queries.csv'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -88,6 +87,8 @@ def load_model_and_tokenizer():
     model.to(device)
     return model, tokenizer, label_encoder, device
 
+    model.to(device)
+    return model, tokenizer, label_encoder, device
 
 def load_label_encoder(csv_path):
     data = pd.read_csv(csv_path)
@@ -97,16 +98,12 @@ def load_label_encoder(csv_path):
 
 def predict_query(model, tokenizer, label_encoder, query, device):
     model.eval()
-    if not isinstance(query, str):
-        raise ValueError(f"Expected query to be a string, but got {type(query)}")
-    print(f"Query: {query}")  # Debugging statement
-    inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True)
     inputs = {key: val.to(device) for key, val in inputs.items()}
     with torch.no_grad():
         outputs = model(**inputs)
     predicted = torch.argmax(outputs.logits, dim=1).item()
     return label_encoder.inverse_transform([predicted])[0]
-
 
 def get_image_base64(image_path):
     img = Image.open(image_path)
@@ -194,7 +191,7 @@ if uploaded_file is not None:
     try:
         df = load_dataset(uploaded_file)
         st.write("Dataset loaded successfully")
-        with st.expander("🔎 File Preview"):
+        with st.expander("🔎 Dataframe Preview"):
             preview_rows = st.slider("Number of rows to display", min_value=1, max_value=len(df), value=5)
             st.dataframe(df.head(preview_rows))
     except Exception as e:
@@ -265,7 +262,6 @@ def create_plot(dataframe, plot_type, x_col, y_col=None):
     )
 
     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Plot created using column(s): {x_col}" + (f" and {y_col}" if y_col else "") + "</p>", unsafe_allow_html=True)
-
 
 def extract_filter_params(query):
     query = re.sub(r'can you |please |the dataset |dataset |data |out |,', '', query.lower())
@@ -398,13 +394,15 @@ if query:
         action = predict_query(model, tokenizer, label_encoder, query, device)
         action = action.strip().lower().replace('"', '')
         #st.write(f"Predicted Action: {action}")
-       if action not in ["show data", "describe", "filter", "plot", "count rows", 
+        if action not in ["show data", "describe", "filter", "plot", "count rows", 
                       "maximum", "minimum", "average", "sum", "count value", "missing values", 
                       "unique values", "add column", "drop column", "rename column", "group by", 
                       "heat map", "sample data", "concat data", "join data", "rolling window", 
                       "apply function"]:
                 #st.write(f"Unrecognized action ,for query: {query}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
+
+
         elif action == "show columns":
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>The columns in file are :</p>", unsafe_allow_html=True)
             st.write(df.columns.tolist())
@@ -484,6 +482,7 @@ if query:
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
         elif action == "plot":
             plot_query = query.lower()
+            
             plot_types = {
                 'bar': 'bar',
                 'pie': 'pie',
@@ -493,6 +492,7 @@ if query:
                 'box': 'box'
             }
             plot_type = next((plot_types[key] for key in plot_types if key in plot_query), None)
+            
             if plot_type:
                 columns = re.findall(r'between\s+(\w+)\s+and\s+(\w+)', plot_query)
                 if not columns and 'of' in plot_query:
@@ -539,7 +539,6 @@ if query:
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{new_col_name}</strong>' added successfully.</p>", unsafe_allow_html=True)
 
                     st.dataframe(df.head())
-
                     csv = df.to_csv(index=False)
                     btn = st.download_button(
                         label="Download CSV",
@@ -547,12 +546,10 @@ if query:
                         file_name='updated_data.csv',
                         mime='text/csv',
                     )
-
                 except Exception as e:
                     #st.write(f"Error adding column: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error adding column.</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again.</p>", unsafe_allow_html=True)
-
         elif action == "drop column":
             try:
                 column = query.split(" ")[-1]
@@ -705,4 +702,3 @@ if query:
                 except Exception as e:
                     #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
-
