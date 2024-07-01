@@ -177,6 +177,9 @@ with st.expander("About"):
     )
 uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx'])
 
+def remove_spaces_from_columns(df):
+    return df.rename(columns=lambda x: x.replace(' ', '_'))
+
 def load_dataset(file):
     if file.type == "text/csv":
         return pd.read_csv(file)
@@ -188,6 +191,18 @@ if uploaded_file is not None:
     try:
         df = load_dataset(uploaded_file)
         st.write("Dataset loaded successfully")
+        if any(' ' in col for col in df.columns):
+            st.warning("WARNING : Some column names contain spaces. Spaces are removed from column name for easier querying.")
+            df_no_spaces = remove_spaces_from_columns(df)
+            csv_no_spaces = df_no_spaces.to_csv(index=False)
+            st.download_button(
+                label="Download CSV with spaces removed from column names",
+                data=csv_no_spaces,
+                file_name="dataset_no_spaces.csv",
+                mime="text/csv",
+            )
+            df = df_no_spaces
+        
         with st.expander("🔎 Dataframe Preview"):
             preview_rows = st.slider("Number of rows to display", min_value=1, max_value=len(df), value=5)
             st.dataframe(df.head(preview_rows))
