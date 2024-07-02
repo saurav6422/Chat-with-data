@@ -4,17 +4,13 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from transformers import pipeline
-import tempfile
 from PIL import Image
 import base64
 from io import BytesIO
 import torch
-from transformers import BertForSequenceClassification, BertTokenizer
-from transformers import AutoTokenizer
+from transformers import BertForSequenceClassification, BertTokenizer,AutoTokenizer
 from sklearn.preprocessing import LabelEncoder
 import re
-import difflib
-
 
 expander_content = """
 
@@ -73,7 +69,6 @@ This Streamlit application provides a chatbot interface for interacting with dat
 - **Lambda Function Application**: Apply custom Python functions to columns.
 """
 df = None
-@st.cache_resource
 def load_model_and_tokenizer():
     model_path = 'model_3'
     #tokenizer_path = 'tokenizer_3'
@@ -216,28 +211,55 @@ def rename_column(dataframe, old_col_name, new_col_name):
     dataframe.rename(columns={old_col_name: new_col_name}, inplace=True)
     return dataframe
 
-def find_closest_column(df, query_column):
-    columns_lower = [col.lower() for col in df.columns]
-    query_column_lower = query_column.lower()
+def extractor(query, df):
+    col1, col2, numeric_value = None, None, None
+    numeric_match = re.search(r'\d+', query)
+    if numeric_match:
+        numeric_value = numeric_match.group()
     
-    if query_column_lower in columns_lower:
-        return df.columns[columns_lower.index(query_column_lower)]
+    words = query.split()
+    matched_columns = []
+    matched_columns = [word for word in words if word in df.columns]
     
-    closest_match = difflib.get_close_matches(query_column_lower, columns_lower, n=1, cutoff=0.6)
-    if closest_match:
-        return df.columns[columns_lower.index(closest_match[0])]
+    if matched_columns:
+        col1 = matched_columns[0]
+        if len(matched_columns) > 1:
+            col2 = matched_columns[1]
+    
+    return col1, col2, numeric_value
+
+def ex(query, df, col1):
+    if col1 is None:
+        return None
+    
+    unique_values = df[col1].unique().tolist()
+    unique_values_lower = [str(val).lower() for val in unique_values]
+    for value in sorted(unique_values, key=lambda x: len(str(x)), reverse=True):
+        if str(value).lower() in query.lower():
+            return value
+    words = query.split()
+    phrases = []
+    for i in range(len(words)):
+        for j in range(i + 1, len(words) + 1):
+            phrases.append(' '.join(words[i:j]))
+    for phrase in sorted(phrases, key=len, reverse=True):
+        if phrase.lower() in unique_values_lower:
+            return unique_values[unique_values_lower.index(phrase.lower())]
+    for word in words:
+        if word.replace(',', '').isdigit():
+            numeric_value = int(word.replace(',', ''))
+            if numeric_value in unique_values:
+                return numeric_value
+    
     return None
 
 def create_plot(dataframe, plot_type, x_col, y_col=None):
     plt.figure(figsize=(10, 6))
-    
-    x_col = find_closest_column(dataframe, x_col)
     if x_col is None:
         st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{x_col}' in the dataset.</p>", unsafe_allow_html=True)
         return
     
     if y_col:
-        y_col = find_closest_column(dataframe, y_col)
         if y_col is None:
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{y_col}' in the dataset.</p>", unsafe_allow_html=True)
             return
@@ -275,127 +297,54 @@ def create_plot(dataframe, plot_type, x_col, y_col=None):
 
     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Plot created using column(s): {x_col}" + (f" and {y_col}" if y_col else "") + "</p>", unsafe_allow_html=True)
 
-def extract_filter_params(query):
-    query = re.sub(r'can you |please |the dataset |dataset |data |out |,', '', query.lower())
-    parts = query.split()
-    filter_index = parts.index('filter') if 'filter' in parts else -1
-    by_index = parts.index('by') if 'by' in parts else -1
-    
-    if filter_index != -1 and by_index != -1:
-        potential_col_val = ' '.join(parts[by_index+1:])
-        col_val_parts = potential_col_val.split(' ', 1)
-        if len(col_val_parts) > 1:
-            column, value = col_val_parts
-        else:
-            column = col_val_parts[0]
-            value = ''
-    else:
-        column = parts[-2]
-        value = parts[-1]
-    
-    return column.strip(), value.strip()
 
 def apply_filter(df, column, value):
-    correct_column = next((col for col in df.columns if col.lower() == column.lower()), None)
-    
-    if correct_column is None:
-        return df, f"Column '{column}' not found in the dataset. Available columns are: {', '.join(df.columns)}"
-    
-    try:
-        numeric_value = pd.to_numeric(value.replace(',', ''))
-        filtered_df = df[df[correct_column] == numeric_value]
-    except ValueError:
-        if value.startswith(('>', '<', '=')):
-            op = value[0]
-            val = value[1:].strip()
-            try:
-                val = float(val.replace(',', ''))
+    is_numeric = pd.api.types.is_numeric_dtype(df[column])
+
+    if value.startswith(('>', '<', '=')):
+        op = value[0]
+        val = value[1:].strip()
+        try:
+            if is_numeric:
+                val = pd.to_numeric(val.replace(',', ''))
                 if op == '>':
-                    filtered_df = df[df[correct_column] > val]
+                    return df[df[column] > val]
                 elif op == '<':
-                    filtered_df = df[df[correct_column] < val]
+                    return df[df[column] < val]
                 elif op == '=':
-                    filtered_df = df[df[correct_column] == val]
-            except ValueError:
-                filtered_df = df[df[correct_column].astype(str).str.contains(value, case=False)]
-        else:
-            filtered_df = df[df[correct_column].astype(str).str.contains(value, case=False)]
-    
-    return filtered_df, None
-
-def parse_column_from_query(action, query):
-    keywords = {
-        "maximum": ["maximum", "max"],
-        "minimum": ["minimum", "min"],
-        "average": ["average", "mean"],
-        "sum": ["sum", "total"]
-    }
-    
-    query = query.lower()
-    for keyword in keywords[action]:
-        query = query.replace(keyword, "")
-
-    unnecessary_words = [
-        "you", "please", "provide", "the", "value", "in", "all", "out", "can", 
-        "i", "get", " ", "what", "is", "find", "give", "me", "of", "a", "what", "is", "whatis"
-    ]
-    pattern = r'\b(' + '|'.join(re.escape(word) for word in unnecessary_words) + r')\b'
-    query = re.sub(pattern, '', query)
-    
-    query = re.sub(r'[^\w\s]', '', query)
-    
-    return query.strip()
-
-
-def find_column_in_dataframe(df, column_query):
-    column_query = column_query.lower().strip()
-    for col in df.columns:
-        if col.lower().strip() == column_query:
-            return col
-    return None
-
-
-def parse_count_value_query(query):
-    patterns = [
-        r"count\s+the\s+number\s+of\s+(\d+(?:,\d+)*)\s+in\s+(\w+)",
-        r"what\s+is\s+the\s+count\s+of\s+(\d+(?:,\d+)*)\s+in\s+(\w+)",
-        r"provide\s+the\s+number\s+of\s+(\w+)\s+in\s+(\w+)",
-        r"can\s+i\s+get\s+the\s+number\s+of\s+(\w+)\s+in\s+(\w+)",
-        r"can\s+i\s+get\s+the\s+count\s+of\s+(\w+)\s+in\s+(\w+)",
-        r"can\s+you\s+find\s+the\s+total\s+number\s+of\s+(\d+(?:,\d+)*)\s+in\s+(\w+)",
-        r"can\s+you\s+find\s+the\s+count\s+of\s+(\d+(?:,\d+)*)\s+in\s+(\w+)",
-        r"find\s+the\s+count\s+of\s+(\w+)\s+in\s+(\w+)",
-        r"what\s+is\s+the\s+number\s+of\s+(\w+)\s+in\s+(\w+)",
-        r"count\s+(\w+)\s+in\s+(\w+)",
-        r"count\s+of\s+(\w+)\s+in\s+(\w+)" 
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, query, re.IGNORECASE)
-        if match:
-            value, column = match.groups()
-            return value.replace(",", ""), column
-
-    return None, None
-
+                    return df[df[column] == val]
+            else:
+                if op == '>':
+                    return df[df[column] > val]
+                elif op == '<':
+                    return df[df[column] < val]
+                elif op == '=':
+                    return df[df[column] == val]
+        except ValueError:
+            return df[df[column].astype(str).str.contains(value, case=False, na=False)]
+    else:
+        try:
+            if is_numeric:
+                numeric_value = pd.to_numeric(value.replace(',', ''))
+                return df[df[column] == numeric_value]
+            else:
+                return df[df[column] == value]
+        except ValueError:
+            return df[df[column].astype(str).str.contains(value, case=False, na=False)]
     
 def count_value(df, query):
-    value, column = parse_count_value_query(query)
-    if value is None or column is None:
-        return f"Could not parse the query: '{query}'"
-
-    correct_column = next((col for col in df.columns if col.lower() == column.lower()), None)
-    if correct_column is None:
-        return f"Column '{column}' not found in the dataset. Available columns are: {', '.join(df.columns)}"
-
+    column,col2,v=extractor(query, df)
+    if column is None:
+        return f"Column not found in file. Available columns are: {', '.join(df.columns)}"
+    value=ex(query,df,column)
+    if value is None :
+        return f"Value not present in the Column '{column}'."
     try:
-        if df[correct_column].dtype.kind in 'biufc':
-            value = pd.to_numeric(value.replace(",", ""), errors='ignore')
-            count_value = df[df[correct_column] == value].shape[0]
+        if df[column].dtype.kind in 'biufc':
+            count_value = df[df[column] == value].shape[0]
         else:
-            count_value = df[df[correct_column].astype(str).str.contains(value, case=False)].shape[0]
-
-        return f"The number of '{value}' in {correct_column} is {count_value}."
+            count_value = df[df[column].astype(str).str.contains(value, case=False)].shape[0]
+        return f"The number of '{value}' in {column} is {count_value}."
     except Exception as e:
         return f"Error counting value: {e}"
 
@@ -410,33 +359,38 @@ if query:
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>The columns in file are :</p>", unsafe_allow_html=True)
             st.write(df.columns.tolist())
         elif action == "show data":
-            try:
-                n = int(query.split(" ")[-1])
-                st.dataframe(df.head(n))
-            except ValueError:
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for rows to display.</p>", unsafe_allow_html=True)
+            column,col2,value=extractor(query, df)
+            if value is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please enter the number of rows.</p>", unsafe_allow_html=True)
+            else:    
+                try:
+                    n = int(value)
+                    st.dataframe(df.head(n))
+                except ValueError:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for rows to display.</p>", unsafe_allow_html=True)
         elif action == "describe":
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>Description of the Data </p>", unsafe_allow_html=True)
             st.dataframe(df.describe())
         elif action == "filter":
             try:
-                column, value = extract_filter_params(query)
-                filtered_df, error = apply_filter(df, column, value)
-                
-                if error:
-                    st.error(error)
-                else:
-                    st.write(f"Filtered by {column} = {value}")
-                    lengg=len(filtered_df)
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Number of rows in filtered dataset: <strong>{lengg:,}.</p>", unsafe_allow_html=True)
-                    st.dataframe(filtered_df)
-                    csv = filtered_df.to_csv(index=False)
-                    st.download_button(
-                        label="Download filtered data as CSV",
-                        data=csv,
-                        file_name="filtered_data.csv",
-                        mime="text/csv",
-                    )
+                column,col2,_=extractor(query, df)
+                if column is None:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in file.</p>", unsafe_allow_html=True)
+                value=ex(query,df,column)
+                if value is None :
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Value not present in column.</p>", unsafe_allow_html=True)
+                filtered_df = apply_filter(df, column, str(value))
+                st.write(f"Filtered by {column} = {value}")
+                lengg=len(filtered_df)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Number of rows in filtered dataset: <strong>{lengg:,}.</p>", unsafe_allow_html=True)
+                st.dataframe(filtered_df)
+                csv = filtered_df.to_csv(index=False)
+                st.download_button(
+                    label="Download filtered data as CSV",
+                    data=csv,
+                    file_name="filtered_data.csv",
+                    mime="text/csv",
+                )
             except Exception as e:
                 #st.error(f"Error processing filter: {e}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error processing filter.</p>", unsafe_allow_html=True)
@@ -446,8 +400,7 @@ if query:
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>The dataset contains <strong>{row_count:,}</strong> rows of data.</p>", unsafe_allow_html=True)
         elif action in ["maximum", "minimum", "average", "sum"]:
             try:
-                column_query = parse_column_from_query(action, query)
-                column = find_column_in_dataframe(df, column_query)
+                column,col2,value=extractor(query, df)
                 if column:
                     if action == "maximum":
                         m1=df[column].max()
@@ -462,7 +415,7 @@ if query:
                         m4=df[column].sum()
                         st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sum value in column '<strong>{column}</strong>' : <strong>{m4}.</p>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column_query}</strong>' not found in the dataset.</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in the dataset.</p>", unsafe_allow_html=True)
             except Exception as e:
                 if "can only concatenate str (not" in str(e):
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>The column contains non-numeric values.</p>", unsafe_allow_html=True)
@@ -477,12 +430,15 @@ if query:
             st.markdown(f"<p style='font-size: 20px; text-align: left;'>Missing Values : </p>", unsafe_allow_html=True)
             st.write(df.isnull().sum())
         elif action == "unique values":
-            try:
-                column = query.split(" ")[-1]
-                st.write(df[column].unique().tolist())
-            except Exception as e:
-                #st.write(f"Error fetching unique values: {e}")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
+            column,col2,value=extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
+                try:
+                    st.write(df[column].unique().tolist())
+                except Exception as e:
+                    #st.write(f"Error fetching unique values: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
         elif action == "plot":
             plot_query = query.lower()
             
@@ -497,27 +453,14 @@ if query:
             plot_type = next((plot_types[key] for key in plot_types if key in plot_query), None)
             
             if plot_type:
-                columns = re.findall(r'between\s+(\w+)\s+and\s+(\w+)', plot_query)
-                if not columns and 'of' in plot_query:
-                    columns = re.findall(r'of\s+(\w+)', plot_query)
-                if columns:
-                    if plot_type == 'pie':
-                        x_col = columns[0]
-                        y_col = None
-                    elif len(columns[0]) == 2:
-                        x_col, y_col = columns[0]
-                    elif len(columns[0]) == 1:
-                        x_col = columns[0][0]
-                        y_col = None
-                    else:
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Couldn't parse column names from the query.</p>", unsafe_allow_html=True)
-
+                x_col,y_col,value=extractor(query, df)
+                if x_col:
                     try:
                         create_plot(df, plot_type, x_col, y_col)
                     except Exception as e:
                         st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating plot: {str(e)}</p>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Couldn't parse column names from the query.</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not presnt in the file.</p>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported plot type. Please try again.</p>", unsafe_allow_html=True)
         elif action == "add column":
@@ -554,20 +497,24 @@ if query:
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error adding column.</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again.</p>", unsafe_allow_html=True)
         elif action == "drop column":
-            try:
-                column = query.split(" ")[-1]
-                df.drop(columns=[column], inplace=True)
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column}</strong>' dropped successfully.</p>", unsafe_allow_html=True)
-                st.dataframe(df.head())
-                csv = df.to_csv(index=False)
-                st.download_button(label="Download CSV", data=csv, file_name='updated_data.csv', mime='text/csv')
-            except Exception as e:
-                #st.write(f"Error dropping column: {e}")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error dropping column.</p>", unsafe_allow_html=True)
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again.</p>", unsafe_allow_html=True)
+            column,col2,value=extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
+                try:
+                    df.drop(columns=[column], inplace=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column}</strong>' dropped successfully.</p>", unsafe_allow_html=True)
+                    st.dataframe(df.head())
+                    csv = df.to_csv(index=False)
+                    st.download_button(label="Download CSV", data=csv, file_name='updated_data.csv', mime='text/csv')
+                except Exception as e:
+                    #st.write(f"Error dropping column: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error dropping column.</p>", unsafe_allow_html=True)
         elif action == "sample data":
             try:
-                n = int(query.split(" ")[-1])
+                column,col2,value=extractor(query, df)
+                n = int(value)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sample of size '<strong>{n}</strong>':</p>", unsafe_allow_html=True)
                 st.dataframe(df.sample(n))
             except ValueError:
                 #st.write("Please provide a valid number for sampling.")
@@ -575,9 +522,19 @@ if query:
 
         elif action == "rename column":
             try:
-                parts = query.split(" ")
-                old_col_name = parts[1].strip('"')
-                new_col_name = parts[-1].strip('"')
+                old_col_name,_,_=extractor(query, df)
+                if old_col_name is None:
+                    st.markdown("<p style='font-size: 20px; text-align: center;'>Old column name not found in the query.</p>", unsafe_allow_html=True)
+                words = query.split()
+                try:
+                    old_col_index = words.index(old_col_name)
+                    if old_col_index + 2 < len(words):
+                        new_col_name = words[old_col_index + 2]
+                    else:
+                        st.markdown("<p style='font-size: 20px; text-align: center;'>New column name not found in the query.</p>", unsafe_allow_html=True)
+                except ValueError:
+                    st.markdown("<p style='font-size: 20px; text-align: center;'>Error processing the query.</p>", unsafe_allow_html=True)
+                
                 df = rename_column(df, old_col_name, new_col_name)
                 #st.write(f"Column {old_col_name} renamed to {new_col_name} successfully.")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column <strong>{old_col_name}</strong> renamed to <strong>{new_col_name} </strong> successfully.</p>", unsafe_allow_html=True)
@@ -593,21 +550,21 @@ if query:
                 #st.write(f"Error renaming column: {e}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error renaming column.</p>", unsafe_allow_html=True)
         elif action == "group by":
-            try:
-                parts = query.split(" ")
-                group_col_index = parts.index("by") + 1
-                group_col = parts[group_col_index]
-
-                grouped_data = df.groupby(group_col).apply(lambda x: x.to_dict('records'))
-                gr=group_col.capitalize()
-                #st.write(f"### Grouped Data by {group_col.capitalize()} ###")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Grouped Data by '<strong>{gr}</strong>'successfully.</p>", unsafe_allow_html=True)
-                for group_name, group_data in grouped_data.items():
-                    st.write(f"**{group_name}**")
-                    st.write(pd.DataFrame(group_data))
-            except Exception as e:
-                #st.write(f"Error grouping by column: {e}")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error grouping by column.</p>", unsafe_allow_html=True)
+            group_col,col2,value=extractor(query, df)
+            if group_col is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
+                try:
+                    grouped_data = df.groupby(group_col).apply(lambda x: x.to_dict('records'))
+                    gr=group_col.capitalize()
+                    #st.write(f"### Grouped Data by {group_col.capitalize()} ###")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Grouped Data by '<strong>{gr}</strong>'successfully.</p>", unsafe_allow_html=True)
+                    for group_name, group_data in grouped_data.items():
+                        st.write(f"**{group_name}**")
+                        st.write(pd.DataFrame(group_data))
+                except Exception as e:
+                    #st.write(f"Error grouping by column: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error grouping by column.</p>", unsafe_allow_html=True)
     
         elif action == "heat map":
             try:
@@ -670,11 +627,17 @@ if query:
                     #st.write(f"Error joining data: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error joining data.</p>", unsafe_allow_html=True)
         elif action == "rolling window":
-            column = st.selectbox("Choose Column for Rolling Calculation", df.columns)
-            window_size = st.number_input("Enter Rolling Window Size", min_value=1)
-            if st.button("Apply Rolling Window"):
+            column,col2,window_size = extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            elif window_size is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Enter a valid size(number).</p>", unsafe_allow_html=True) 
+            else:    
                 try:
+                    window_size=1
+                    window_size = int(window_size)
                     rolling_df = df[column].rolling(window=window_size).mean()
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'> Rolling mean of '<strong>{column}</strong>' by '<strong>{window_size}</strong>':</p>", unsafe_allow_html=True)
                     st.line_chart(rolling_df)
                 except Exception as e:
                     #st.write(f"Error applying rolling window: {e}")
@@ -713,4 +676,3 @@ if query:
                       "apply function"]:
                 #st.write(f"Unrecognized action ,for query: {query}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
-
