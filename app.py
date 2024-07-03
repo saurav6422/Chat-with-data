@@ -200,7 +200,7 @@ if uploaded_file is not None:
             )
             df = df_no_spaces
         
-        with st.expander("🔎 Dataframe Preview"):
+        with st.expander("🔎 File Preview"):
             preview_rows = st.slider("Number of rows to display", min_value=1, max_value=len(df), value=5)
             st.dataframe(df.head(preview_rows))
     except Exception as e:
@@ -348,10 +348,10 @@ def count_value(df, query):
     if value is None :
         return f"Value not present in the Column '{column}'."
     try:
-        if df[column].dtype.kind in 'biufc':
-            count_value = df[df[column] == value].shape[0]
+        if df[column].dtype == 'object':
+            count_value = df[df[column].str.lower() == str(value).lower()].shape[0]
         else:
-            count_value = df[df[column].astype(str).str.contains(value, case=False)].shape[0]
+            count_value = df[df[column] == value].shape[0]
         return f"The number of '{value}' in {column} is {count_value}."
     except Exception as e:
         return f"Error counting value: {e}"
