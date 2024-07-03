@@ -208,12 +208,12 @@ if uploaded_file is not None:
 
 model, tokenizer, label_encoder, device = load_model_and_tokenizer()
 
-b1, b2 = st.columns([5, 1])
-with b1:
-    query = st.text_area("🗣️ Chat with Data", key="query_input")
-with b2:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    submit_button = st.button("Enter", key="submit")
+# b1, b2 = st.columns([5, 1])
+# with b1:
+query = st.text_area("🗣️ Chat with Data", key="query_input")
+# with b2:
+#     st.markdown("<br><br>", unsafe_allow_html=True)
+#     submit_button = st.button("Enter", key="submit")
 
 def rename_column(dataframe, old_col_name, new_col_name):
     dataframe.rename(columns={old_col_name: new_col_name}, inplace=True)
@@ -355,197 +355,143 @@ def count_value(df, query):
         return f"The number of '{value}' in {column} is {count_value}."
     except Exception as e:
         return f"Error counting value: {e}"
-if submit_button:
-    if query:
-        if df is None:
-            st.markdown(f"<p style='font-size: 20px; text-align: center;'>No dataset loaded. Please upload a file first.</p>", unsafe_allow_html=True)
-        else:
-            action = predict_query(model, tokenizer, label_encoder, query, device)
-            action = action.strip().lower().replace('"', '')
-            #st.write(f"Predicted Action: {action}")
-            if action == "show columns":
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>The columns in file are :</p>", unsafe_allow_html=True)
-                st.write(df.columns.tolist())
-            elif action == "show data":
-                column,col2,value=extractor(query, df)
-                if value is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please enter the number of rows.</p>", unsafe_allow_html=True)
-                else:    
-                    try:
-                        n = int(value)
-                        st.dataframe(df.head(n))
-                    except ValueError:
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for rows to display.</p>", unsafe_allow_html=True)
-            elif action == "describe":
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Description of the Data </p>", unsafe_allow_html=True)
-                st.dataframe(df.describe())
-            elif action == "filter":
+# if submit_button:
+if query:
+    if df is None:
+        st.markdown(f"<p style='font-size: 20px; text-align: center;'>No dataset loaded. Please upload a file first.</p>", unsafe_allow_html=True)
+    else:
+        action = predict_query(model, tokenizer, label_encoder, query, device)
+        action = action.strip().lower().replace('"', '')
+        #st.write(f"Predicted Action: {action}")
+        if action == "show columns":
+            st.markdown(f"<p style='font-size: 20px; text-align: center;'>The columns in file are :</p>", unsafe_allow_html=True)
+            st.write(df.columns.tolist())
+        elif action == "show data":
+            column,col2,value=extractor(query, df)
+            if value is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please enter the number of rows.</p>", unsafe_allow_html=True)
+            else:    
                 try:
-                    column,col2,_=extractor(query, df)
-                    if column is None:
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in file.</p>", unsafe_allow_html=True)
-                    value=ex(query,df,column)
-                    if value is None :
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Value not present in column.</p>", unsafe_allow_html=True)
-                    filtered_df = apply_filter(df, column, str(value))
-                    st.write(f"Filtered by {column} = {value}")
-                    lengg=len(filtered_df)
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Number of rows in filtered dataset: <strong>{lengg:,}.</p>", unsafe_allow_html=True)
-                    st.dataframe(filtered_df)
-                    csv = filtered_df.to_csv(index=False)
-                    st.download_button(
-                        label="Download filtered data as CSV",
-                        data=csv,
-                        file_name="filtered_data.csv",
-                        mime="text/csv",
-                    )
-                except Exception as e:
-                    #st.error(f"Error processing filter: {e}")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error processing filter.</p>", unsafe_allow_html=True)
-
-            elif action == "count rows":
-                row_count = len(df)
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>The dataset contains <strong>{row_count:,}</strong> rows of data.</p>", unsafe_allow_html=True)
-            elif action in ["maximum", "minimum", "average", "sum"]:
-                try:
-                    column,col2,value=extractor(query, df)
-                    if column:
-                        if action == "maximum":
-                            m1=df[column].max()
-                            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Maximum value in column '<strong>{column}</strong>' : <strong>{m1}.</p>", unsafe_allow_html=True)
-                        elif action == "minimum":
-                            m2=df[column].min()
-                            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Minimum value in column '<strong>{column}</strong>' : <strong>{m2}.</p>", unsafe_allow_html=True)
-                        elif action == "average":
-                            m3=df[column].mean()
-                            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Average value in column '<strong>{column}</strong>' : <strong>{m3}.</p>", unsafe_allow_html=True)
-                        elif action == "sum":
-                            m4=df[column].sum()
-                            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sum value in column '<strong>{column}</strong>' : <strong>{m4}.</p>", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in the dataset.</p>", unsafe_allow_html=True)
-                except Exception as e:
-                    if "can only concatenate str (not" in str(e):
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>The column contains non-numeric values.</p>", unsafe_allow_html=True)
-                    else:
-                        #st.write(f"Error calculating {action}: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error calculating.</p>", unsafe_allow_html=True)
-            elif action == "count value":
-                result = count_value(df, query)
-                #st.write(result)
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'><strong>{result}</strong></p>", unsafe_allow_html=True)
-            elif action == "missing values":
-                st.markdown(f"<p style='font-size: 20px; text-align: left;'>Missing Values : </p>", unsafe_allow_html=True)
-                st.write(df.isnull().sum())
-            elif action == "unique values":
-                column,col2,value=extractor(query, df)
-                if column is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
-                else:    
-                    try:
-                        st.write(df[column].unique().tolist())
-                    except Exception as e:
-                        #st.write(f"Error fetching unique values: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
-            elif action == "plot":
-                plot_query = query.lower()
-                
-                plot_types = {
-                    'bar': 'bar',
-                    'pie': 'pie',
-                    'line': 'line',
-                    'scatter': 'scatter',
-                    'histogram': 'histogram',
-                    'box': 'box'
-                }
-                plot_type = next((plot_types[key] for key in plot_types if key in plot_query), None)
-                
-                if plot_type:
-                    x_col,y_col,value=extractor(query, df)
-                    if x_col:
-                        try:
-                            create_plot(df, plot_type, x_col, y_col)
-                        except Exception as e:
-                            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating plot: {str(e)}</p>", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not presnt in the file.</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported plot type. Please try again.</p>", unsafe_allow_html=True)
-            elif action == "add column":
-                new_col_name = st.text_input("New Column Name")
-                existing_col = st.selectbox("Choose Existing Column", df.columns)
-                operation = st.selectbox("Choose Operation", ["multiply", "add", "subtract", "divide"])
-                if operation == "multiply" or operation == "divide":
-                    factor = st.number_input(f"Enter the {operation} factor", value=2.0, step=1.0)
-                else:
-                    factor = st.number_input(f"Enter the {operation} value", value=0.0, step=1.0)
-                if st.button("Add Column"):
-                    try:
-                        if operation == "multiply":
-                            df[new_col_name] = df[existing_col] * factor
-                        elif operation == "add":
-                            df[new_col_name] = df[existing_col] + factor
-                        elif operation == "subtract":
-                            df[new_col_name] = df[existing_col] - factor
-                        elif operation == "divide":
-                            df[new_col_name] = df[existing_col] / factor
-                        #st.write(f"Column {new_col_name} added successfully.")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{new_col_name}</strong>' added successfully.</p>", unsafe_allow_html=True)
-
-                        st.dataframe(df.head())
-                        csv = df.to_csv(index=False)
-                        btn = st.download_button(
-                            label="Download CSV",
-                            data=csv,
-                            file_name='updated_data.csv',
-                            mime='text/csv',
-                        )
-                    except Exception as e:
-                        #st.write(f"Error adding column: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error adding column.</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again.</p>", unsafe_allow_html=True)
-            elif action == "drop column":
-                column,col2,value=extractor(query, df)
-                if column is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
-                else:    
-                    try:
-                        df.drop(columns=[column], inplace=True)
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column}</strong>' dropped successfully.</p>", unsafe_allow_html=True)
-                        st.dataframe(df.head())
-                        csv = df.to_csv(index=False)
-                        st.download_button(label="Download CSV", data=csv, file_name='updated_data.csv', mime='text/csv')
-                    except Exception as e:
-                        #st.write(f"Error dropping column: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error dropping column.</p>", unsafe_allow_html=True)
-            elif action == "sample data":
-                try:
-                    column,col2,value=extractor(query, df)
                     n = int(value)
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sample of size '<strong>{n}</strong>':</p>", unsafe_allow_html=True)
-                    st.dataframe(df.sample(n))
+                    st.dataframe(df.head(n))
                 except ValueError:
-                    #st.write("Please provide a valid number for sampling.")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for sampling.</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for rows to display.</p>", unsafe_allow_html=True)
+        elif action == "describe":
+            st.markdown(f"<p style='font-size: 20px; text-align: center;'>Description of the Data </p>", unsafe_allow_html=True)
+            st.dataframe(df.describe())
+        elif action == "filter":
+            try:
+                column,col2,_=extractor(query, df)
+                if column is None:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in file.</p>", unsafe_allow_html=True)
+                value=ex(query,df,column)
+                if value is None :
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Value not present in column.</p>", unsafe_allow_html=True)
+                filtered_df = apply_filter(df, column, str(value))
+                st.write(f"Filtered by {column} = {value}")
+                lengg=len(filtered_df)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Number of rows in filtered dataset: <strong>{lengg:,}.</p>", unsafe_allow_html=True)
+                st.dataframe(filtered_df)
+                csv = filtered_df.to_csv(index=False)
+                st.download_button(
+                    label="Download filtered data as CSV",
+                    data=csv,
+                    file_name="filtered_data.csv",
+                    mime="text/csv",
+                )
+            except Exception as e:
+                #st.error(f"Error processing filter: {e}")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error processing filter.</p>", unsafe_allow_html=True)
 
-            elif action == "rename column":
+        elif action == "count rows":
+            row_count = len(df)
+            st.markdown(f"<p style='font-size: 20px; text-align: center;'>The dataset contains <strong>{row_count:,}</strong> rows of data.</p>", unsafe_allow_html=True)
+        elif action in ["maximum", "minimum", "average", "sum"]:
+            try:
+                column,col2,value=extractor(query, df)
+                if column:
+                    if action == "maximum":
+                        m1=df[column].max()
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Maximum value in column '<strong>{column}</strong>' : <strong>{m1}.</p>", unsafe_allow_html=True)
+                    elif action == "minimum":
+                        m2=df[column].min()
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Minimum value in column '<strong>{column}</strong>' : <strong>{m2}.</p>", unsafe_allow_html=True)
+                    elif action == "average":
+                        m3=df[column].mean()
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Average value in column '<strong>{column}</strong>' : <strong>{m3}.</p>", unsafe_allow_html=True)
+                    elif action == "sum":
+                        m4=df[column].sum()
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sum value in column '<strong>{column}</strong>' : <strong>{m4}.</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not found in the dataset.</p>", unsafe_allow_html=True)
+            except Exception as e:
+                if "can only concatenate str (not" in str(e):
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>The column contains non-numeric values.</p>", unsafe_allow_html=True)
+                else:
+                    #st.write(f"Error calculating {action}: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error calculating.</p>", unsafe_allow_html=True)
+        elif action == "count value":
+            result = count_value(df, query)
+            #st.write(result)
+            st.markdown(f"<p style='font-size: 20px; text-align: center;'><strong>{result}</strong></p>", unsafe_allow_html=True)
+        elif action == "missing values":
+            st.markdown(f"<p style='font-size: 20px; text-align: left;'>Missing Values : </p>", unsafe_allow_html=True)
+            st.write(df.isnull().sum())
+        elif action == "unique values":
+            column,col2,value=extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
                 try:
-                    old_col_name,_,_=extractor(query, df)
-                    if old_col_name is None:
-                        st.markdown("<p style='font-size: 20px; text-align: center;'>Old column name not found in the query.</p>", unsafe_allow_html=True)
-                    words = query.split()
+                    st.write(df[column].unique().tolist())
+                except Exception as e:
+                    #st.write(f"Error fetching unique values: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error fetching unique values.</p>", unsafe_allow_html=True)
+        elif action == "plot":
+            plot_query = query.lower()
+            
+            plot_types = {
+                'bar': 'bar',
+                'pie': 'pie',
+                'line': 'line',
+                'scatter': 'scatter',
+                'histogram': 'histogram',
+                'box': 'box'
+            }
+            plot_type = next((plot_types[key] for key in plot_types if key in plot_query), None)
+            
+            if plot_type:
+                x_col,y_col,value=extractor(query, df)
+                if x_col:
                     try:
-                        old_col_index = words.index(old_col_name)
-                        if old_col_index + 2 < len(words):
-                            new_col_name = words[old_col_index + 2]
-                        else:
-                            st.markdown("<p style='font-size: 20px; text-align: center;'>New column name not found in the query.</p>", unsafe_allow_html=True)
-                    except ValueError:
-                        st.markdown("<p style='font-size: 20px; text-align: center;'>Error processing the query.</p>", unsafe_allow_html=True)
-                    
-                    df = rename_column(df, old_col_name, new_col_name)
-                    #st.write(f"Column {old_col_name} renamed to {new_col_name} successfully.")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column <strong>{old_col_name}</strong> renamed to <strong>{new_col_name} </strong> successfully.</p>", unsafe_allow_html=True)
+                        create_plot(df, plot_type, x_col, y_col)
+                    except Exception as e:
+                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating plot: {str(e)}</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not presnt in the file.</p>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported plot type. Please try again.</p>", unsafe_allow_html=True)
+        elif action == "add column":
+            new_col_name = st.text_input("New Column Name")
+            existing_col = st.selectbox("Choose Existing Column", df.columns)
+            operation = st.selectbox("Choose Operation", ["multiply", "add", "subtract", "divide"])
+            if operation == "multiply" or operation == "divide":
+                factor = st.number_input(f"Enter the {operation} factor", value=2.0, step=1.0)
+            else:
+                factor = st.number_input(f"Enter the {operation} value", value=0.0, step=1.0)
+            if st.button("Add Column"):
+                try:
+                    if operation == "multiply":
+                        df[new_col_name] = df[existing_col] * factor
+                    elif operation == "add":
+                        df[new_col_name] = df[existing_col] + factor
+                    elif operation == "subtract":
+                        df[new_col_name] = df[existing_col] - factor
+                    elif operation == "divide":
+                        df[new_col_name] = df[existing_col] / factor
+                    #st.write(f"Column {new_col_name} added successfully.")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{new_col_name}</strong>' added successfully.</p>", unsafe_allow_html=True)
+
                     st.dataframe(df.head())
                     csv = df.to_csv(index=False)
                     btn = st.download_button(
@@ -555,132 +501,186 @@ if submit_button:
                         mime='text/csv',
                     )
                 except Exception as e:
-                    #st.write(f"Error renaming column: {e}")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error renaming column.</p>", unsafe_allow_html=True)
-            elif action == "group by":
-                group_col,col2,value=extractor(query, df)
-                if group_col is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
-                else:    
-                    try:
-                        grouped_data = df.groupby(group_col).apply(lambda x: x.to_dict('records'))
-                        gr=group_col.capitalize()
-                        #st.write(f"### Grouped Data by {group_col.capitalize()} ###")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Grouped Data by '<strong>{gr}</strong>'successfully.</p>", unsafe_allow_html=True)
-                        for group_name, group_data in grouped_data.items():
-                            st.write(f"**{group_name}**")
-                            st.write(pd.DataFrame(group_data))
-                    except Exception as e:
-                        #st.write(f"Error grouping by column: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error grouping by column.</p>", unsafe_allow_html=True)
-        
-            elif action == "heat map":
+                    #st.write(f"Error adding column: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error adding column.</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again.</p>", unsafe_allow_html=True)
+        elif action == "drop column":
+            column,col2,value=extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
                 try:
-                    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-                    numeric_df = df[numeric_cols]
-                    corr_matrix = numeric_df.corr()
-                    plt.figure(figsize=(10, 6))
-                    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm")
-                    plot_buffer = BytesIO()
-                    plt.savefig(plot_buffer, format='png')
-                    plot_buffer.seek(0)
-                    plot_base64 = base64.b64encode(plot_buffer.getvalue()).decode('utf-8')
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Heatmap : </p>", unsafe_allow_html=True)
-                    st.pyplot(plt)
-                    st.download_button(
-                        label="Download Plot",
-                        data=plot_base64,
-                        file_name=f"heatmap.png",
-                        mime="image/png"
+                    df.drop(columns=[column], inplace=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column}</strong>' dropped successfully.</p>", unsafe_allow_html=True)
+                    st.dataframe(df.head())
+                    csv = df.to_csv(index=False)
+                    st.download_button(label="Download CSV", data=csv, file_name='updated_data.csv', mime='text/csv')
+                except Exception as e:
+                    #st.write(f"Error dropping column: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error dropping column.</p>", unsafe_allow_html=True)
+        elif action == "sample data":
+            try:
+                column,col2,value=extractor(query, df)
+                n = int(value)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Sample of size '<strong>{n}</strong>':</p>", unsafe_allow_html=True)
+                st.dataframe(df.sample(n))
+            except ValueError:
+                #st.write("Please provide a valid number for sampling.")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please provide a valid number for sampling.</p>", unsafe_allow_html=True)
+
+        elif action == "rename column":
+            try:
+                old_col_name,_,_=extractor(query, df)
+                if old_col_name is None:
+                    st.markdown("<p style='font-size: 20px; text-align: center;'>Old column name not found in the query.</p>", unsafe_allow_html=True)
+                words = query.split()
+                try:
+                    old_col_index = words.index(old_col_name)
+                    if old_col_index + 2 < len(words):
+                        new_col_name = words[old_col_index + 2]
+                    else:
+                        st.markdown("<p style='font-size: 20px; text-align: center;'>New column name not found in the query.</p>", unsafe_allow_html=True)
+                except ValueError:
+                    st.markdown("<p style='font-size: 20px; text-align: center;'>Error processing the query.</p>", unsafe_allow_html=True)
+                
+                df = rename_column(df, old_col_name, new_col_name)
+                #st.write(f"Column {old_col_name} renamed to {new_col_name} successfully.")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column <strong>{old_col_name}</strong> renamed to <strong>{new_col_name} </strong> successfully.</p>", unsafe_allow_html=True)
+                st.dataframe(df.head())
+                csv = df.to_csv(index=False)
+                btn = st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name='updated_data.csv',
+                    mime='text/csv',
+                )
+            except Exception as e:
+                #st.write(f"Error renaming column: {e}")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error renaming column.</p>", unsafe_allow_html=True)
+        elif action == "group by":
+            group_col,col2,value=extractor(query, df)
+            if group_col is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            else:    
+                try:
+                    grouped_data = df.groupby(group_col).apply(lambda x: x.to_dict('records'))
+                    gr=group_col.capitalize()
+                    #st.write(f"### Grouped Data by {group_col.capitalize()} ###")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Grouped Data by '<strong>{gr}</strong>'successfully.</p>", unsafe_allow_html=True)
+                    for group_name, group_data in grouped_data.items():
+                        st.write(f"**{group_name}**")
+                        st.write(pd.DataFrame(group_data))
+                except Exception as e:
+                    #st.write(f"Error grouping by column: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error grouping by column.</p>", unsafe_allow_html=True)
+    
+        elif action == "heat map":
+            try:
+                numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+                numeric_df = df[numeric_cols]
+                corr_matrix = numeric_df.corr()
+                plt.figure(figsize=(10, 6))
+                sns.heatmap(corr_matrix, annot=True, cmap="coolwarm")
+                plot_buffer = BytesIO()
+                plt.savefig(plot_buffer, format='png')
+                plot_buffer.seek(0)
+                plot_base64 = base64.b64encode(plot_buffer.getvalue()).decode('utf-8')
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Heatmap : </p>", unsafe_allow_html=True)
+                st.pyplot(plt)
+                st.download_button(
+                    label="Download Plot",
+                    data=plot_base64,
+                    file_name=f"heatmap.png",
+                    mime="image/png"
+                )
+            except Exception as e:
+                #st.write(f"Error creating heatmap: {e}")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating Heatmap.</p>", unsafe_allow_html=True)
+        elif action == "concat data":
+            uploaded_file_2 = st.file_uploader("Choose a file to concatenate", type=['csv', 'xlsx'])
+            if uploaded_file_2 is not None:
+                try:
+                    df2 = load_dataset(uploaded_file_2)
+                    df = pd.concat([df, df2], axis=0)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes concatenated successfully.</p>", unsafe_allow_html=True)
+                    st.dataframe(df.head())
+                    csv = df.to_csv(index=False)
+                    btn = st.download_button(
+                        label="Download Concatenated CSV",
+                        data=csv,
+                        file_name='concatenated_data.csv',
+                        mime='text/csv',
                     )
                 except Exception as e:
-                    #st.write(f"Error creating heatmap: {e}")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating Heatmap.</p>", unsafe_allow_html=True)
-            elif action == "concat data":
-                uploaded_file_2 = st.file_uploader("Choose a file to concatenate", type=['csv', 'xlsx'])
-                if uploaded_file_2 is not None:
-                    try:
-                        df2 = load_dataset(uploaded_file_2)
-                        df = pd.concat([df, df2], axis=0)
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes concatenated successfully.</p>", unsafe_allow_html=True)
-                        st.dataframe(df.head())
-                        csv = df.to_csv(index=False)
-                        btn = st.download_button(
-                            label="Download Concatenated CSV",
-                            data=csv,
-                            file_name='concatenated_data.csv',
-                            mime='text/csv',
-                        )
-                    except Exception as e:
-                        #st.write(f"Error concatenating data: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error concatenating data.</p>", unsafe_allow_html=True)
-            elif action == "join data":
-                uploaded_file_2 = st.file_uploader("Choose a file to join", type=['csv', 'xlsx'])
-                join_col = st.selectbox("Choose Column to Join On", df.columns)
-                join_type = st.selectbox("Choose Join Type", ["inner", "outer", "left", "right"])
-                if uploaded_file_2 is not None:
-                    try:
-                        df2 = load_dataset(uploaded_file_2)
-                        df = df.merge(df2, on=join_col, how=join_type)
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes joined successfully..</p>", unsafe_allow_html=True)
-                        st.dataframe(df.head())
-                        csv = df.to_csv(index=False)
-                        btn = st.download_button(
-                            label="Download Joined CSV",
-                            data=csv,
-                            file_name='joined_data.csv',
-                            mime='text/csv',
-                        )
-                    except Exception as e:
-                        #st.write(f"Error joining data: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error joining data.</p>", unsafe_allow_html=True)
-            elif action == "rolling window":
-                column,col2,window_size = extractor(query, df)
-                if column is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
-                elif window_size is None :
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Enter a valid size(number).</p>", unsafe_allow_html=True) 
-                else:    
-                    try:
-                        window_size=1
-                        window_size = int(window_size)
-                        rolling_df = df[column].rolling(window=window_size).mean()
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'> Rolling mean of '<strong>{column}</strong>' by '<strong>{window_size}</strong>':</p>", unsafe_allow_html=True)
-                        st.line_chart(rolling_df)
-                    except Exception as e:
-                        #st.write(f"Error applying rolling window: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying rolling window.</p>", unsafe_allow_html=True)
-            elif action == "apply function":
-                column = st.selectbox("Choose Column to Apply Function", df.columns)
-                with st.expander("Functions Available for Apply Function"):
-                    st.markdown(
-                        f"""
-                        <div class="expander-container">
-                        {expander_content}
-                        """,
-                        unsafe_allow_html=True
+                    #st.write(f"Error concatenating data: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error concatenating data.</p>", unsafe_allow_html=True)
+        elif action == "join data":
+            uploaded_file_2 = st.file_uploader("Choose a file to join", type=['csv', 'xlsx'])
+            join_col = st.selectbox("Choose Column to Join On", df.columns)
+            join_type = st.selectbox("Choose Join Type", ["inner", "outer", "left", "right"])
+            if uploaded_file_2 is not None:
+                try:
+                    df2 = load_dataset(uploaded_file_2)
+                    df = df.merge(df2, on=join_col, how=join_type)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes joined successfully..</p>", unsafe_allow_html=True)
+                    st.dataframe(df.head())
+                    csv = df.to_csv(index=False)
+                    btn = st.download_button(
+                        label="Download Joined CSV",
+                        data=csv,
+                        file_name='joined_data.csv',
+                        mime='text/csv',
                     )
-                custom_func = st.text_area("Enter Custom Function (e.g., lambda x: x*2)")
-                if st.button("Apply Function"):
-                    try:
-                        df[column] = df[column].apply(eval(custom_func))
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong>successfully.</p>", unsafe_allow_html=True)
-                        st.dataframe(df.head())
-                        csv = df.to_csv(index=False)
-                        btn = st.download_button(
-                            label="Download Updated CSV",
-                            data=csv,
-                            file_name='updated_data.csv',
-                            mime='text/csv',
-                        )
-                    except Exception as e:
-                        #st.write(f"Error applying function: {e}")
-                        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
-            else:
-                if action not in ["show data", "describe", "filter", "plot", "count rows", 
-                        "maximum", "minimum", "average", "sum", "count value", "missing values", 
-                        "unique values", "add column", "drop column", "rename column", "group by", 
-                        "heat map", "sample data", "concat data", "join data", "rolling window", 
-                        "apply function"]:
-                    #st.write(f"Unrecognized action ,for query: {query}")
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
+                except Exception as e:
+                    #st.write(f"Error joining data: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error joining data.</p>", unsafe_allow_html=True)
+        elif action == "rolling window":
+            column,col2,window_size = extractor(query, df)
+            if column is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
+            elif window_size is None :
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Enter a valid size(number).</p>", unsafe_allow_html=True) 
+            else:    
+                try:
+                    window_size=1
+                    window_size = int(window_size)
+                    rolling_df = df[column].rolling(window=window_size).mean()
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'> Rolling mean of '<strong>{column}</strong>' by '<strong>{window_size}</strong>':</p>", unsafe_allow_html=True)
+                    st.line_chart(rolling_df)
+                except Exception as e:
+                    #st.write(f"Error applying rolling window: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying rolling window.</p>", unsafe_allow_html=True)
+        elif action == "apply function":
+            column = st.selectbox("Choose Column to Apply Function", df.columns)
+            with st.expander("Functions Available for Apply Function"):
+                st.markdown(
+                    f"""
+                    <div class="expander-container">
+                    {expander_content}
+                    """,
+                    unsafe_allow_html=True
+                )
+            custom_func = st.text_area("Enter Custom Function (e.g., lambda x: x*2)")
+            if st.button("Apply Function"):
+                try:
+                    df[column] = df[column].apply(eval(custom_func))
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong>successfully.</p>", unsafe_allow_html=True)
+                    st.dataframe(df.head())
+                    csv = df.to_csv(index=False)
+                    btn = st.download_button(
+                        label="Download Updated CSV",
+                        data=csv,
+                        file_name='updated_data.csv',
+                        mime='text/csv',
+                    )
+                except Exception as e:
+                    #st.write(f"Error applying function: {e}")
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
+        else:
+            if action not in ["show data", "describe", "filter", "plot", "count rows", 
+                    "maximum", "minimum", "average", "sum", "count value", "missing values", 
+                    "unique values", "add column", "drop column", "rename column", "group by", 
+                    "heat map", "sample data", "concat data", "join data", "rolling window", 
+                    "apply function"]:
+                #st.write(f"Unrecognized action ,for query: {query}")
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Please try again .</p>", unsafe_allow_html=True)
