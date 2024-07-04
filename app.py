@@ -511,7 +511,7 @@ if query:
                     except Exception as e:
                         st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating plot: {str(e)}</p>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not presnt in the file.</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column not present in the file.</p>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported plot type. Please try again.</p>", unsafe_allow_html=True)
         elif action == "add column":
