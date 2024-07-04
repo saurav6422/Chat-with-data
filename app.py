@@ -692,10 +692,10 @@ if query:
                     df[column] = df[column].apply(eval(custom_func))
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong>successfully.</p>", unsafe_allow_html=True)
                     st.dataframe(df.head())
-                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
                 except Exception as e:
                     #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
+            export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
             if st.button('Export Data'):
                 export_data(df, export_format)
         else:
