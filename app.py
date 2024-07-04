@@ -673,7 +673,6 @@ if query:
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Enter a valid size(number).</p>", unsafe_allow_html=True) 
             else:    
                 try:
-                    window_size=1
                     window_size = int(window_size)
                     rolling_df = df[column].rolling(window=window_size).mean()
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'> Rolling mean of '<strong>{column}</strong>' by '<strong>{window_size}</strong>':</p>", unsafe_allow_html=True)
