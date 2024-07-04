@@ -7,3 +7,4 @@ seaborn==0.13.2
 streamlit==1.35.0
 torch==2.2.0
 transformers==4.32.1
+xlsxwriter==3.2.0

@@ -13,7 +13,6 @@ from sklearn.preprocessing import LabelEncoder
 import re
 import json
 import pickle as pq
-from collections import Counter
 
 expander_content = """
 
