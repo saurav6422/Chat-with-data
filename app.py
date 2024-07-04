@@ -386,6 +386,23 @@ def count_value(df, query):
         return f"The number of '{value}' in {column} is {count_value}."
     except Exception as e:
         return f"Error counting value: {e}"
+    
+def export_data(df, export_format):
+    if export_format == 'CSV':
+        csv = df.to_csv(index=False)
+        st.download_button(label="Download CSV", data=csv, file_name='data.csv', mime='text/csv')
+    elif export_format == 'Excel':
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
+        excel_data = output.getvalue()
+        st.download_button(label="Download Excel", data=excel_data, file_name='data.xlsx')
+    elif export_format == 'JSON':
+        json_str = df.to_json(orient='records')
+        st.download_button(label="Download JSON", data=json_str, file_name='data.json')
+    else:
+        st.error("Unsupported format.")
+
 # if submit_button:
 if query:
     if df is None:
@@ -423,13 +440,9 @@ if query:
                 lengg=len(filtered_df)
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Number of rows in filtered dataset: <strong>{lengg:,}.</p>", unsafe_allow_html=True)
                 st.dataframe(filtered_df)
-                csv = filtered_df.to_csv(index=False)
-                st.download_button(
-                    label="Download filtered data as CSV",
-                    data=csv,
-                    file_name="filtered_data.csv",
-                    mime="text/csv",
-                )
+                export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                if st.button('Export Data'):
+                    export_data(filtered_df, export_format)
             except Exception as e:
                 #st.error(f"Error processing filter: {e}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error processing filter.</p>", unsafe_allow_html=True)
@@ -522,15 +535,9 @@ if query:
                         df[new_col_name] = df[existing_col] / factor
                     #st.write(f"Column {new_col_name} added successfully.")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{new_col_name}</strong>' added successfully.</p>", unsafe_allow_html=True)
-
-                    st.dataframe(df.head())
-                    csv = df.to_csv(index=False)
-                    btn = st.download_button(
-                        label="Download CSV",
-                        data=csv,
-                        file_name='updated_data.csv',
-                        mime='text/csv',
-                    )
+                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                    if st.button('Export Data'):
+                        export_data(df, export_format)
                 except Exception as e:
                     #st.write(f"Error adding column: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error adding column.</p>", unsafe_allow_html=True)
@@ -544,8 +551,9 @@ if query:
                     df.drop(columns=[column], inplace=True)
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column '<strong>{column}</strong>' dropped successfully.</p>", unsafe_allow_html=True)
                     st.dataframe(df.head())
-                    csv = df.to_csv(index=False)
-                    st.download_button(label="Download CSV", data=csv, file_name='updated_data.csv', mime='text/csv')
+                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                    if st.button('Export Data'):
+                        export_data(df, export_format)
                 except Exception as e:
                     #st.write(f"Error dropping column: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error dropping column.</p>", unsafe_allow_html=True)
@@ -578,13 +586,9 @@ if query:
                 #st.write(f"Column {old_col_name} renamed to {new_col_name} successfully.")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Column <strong>{old_col_name}</strong> renamed to <strong>{new_col_name} </strong> successfully.</p>", unsafe_allow_html=True)
                 st.dataframe(df.head())
-                csv = df.to_csv(index=False)
-                btn = st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name='updated_data.csv',
-                    mime='text/csv',
-                )
+                export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                if st.button('Export Data'):
+                    export_data(df, export_format)
             except Exception as e:
                 #st.write(f"Error renaming column: {e}")
                 st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error renaming column.</p>", unsafe_allow_html=True)
@@ -636,12 +640,9 @@ if query:
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes concatenated successfully.</p>", unsafe_allow_html=True)
                     st.dataframe(df.head())
                     csv = df.to_csv(index=False)
-                    btn = st.download_button(
-                        label="Download Concatenated CSV",
-                        data=csv,
-                        file_name='concatenated_data.csv',
-                        mime='text/csv',
-                    )
+                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                    if st.button('Export Data'):
+                        export_data(df, export_format)
                 except Exception as e:
                     #st.write(f"Error concatenating data: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error concatenating data.</p>", unsafe_allow_html=True)
@@ -655,13 +656,9 @@ if query:
                     df = df.merge(df2, on=join_col, how=join_type)
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Dataframes joined successfully..</p>", unsafe_allow_html=True)
                     st.dataframe(df.head())
-                    csv = df.to_csv(index=False)
-                    btn = st.download_button(
-                        label="Download Joined CSV",
-                        data=csv,
-                        file_name='joined_data.csv',
-                        mime='text/csv',
-                    )
+                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                    if st.button('Export Data'):
+                        export_data(df, export_format)
                 except Exception as e:
                     #st.write(f"Error joining data: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error joining data.</p>", unsafe_allow_html=True)
@@ -696,13 +693,9 @@ if query:
                     df[column] = df[column].apply(eval(custom_func))
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong>successfully.</p>", unsafe_allow_html=True)
                     st.dataframe(df.head())
-                    csv = df.to_csv(index=False)
-                    btn = st.download_button(
-                        label="Download Updated CSV",
-                        data=csv,
-                        file_name='updated_data.csv',
-                        mime='text/csv',
-                    )
+                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                    if st.button('Export Data'):
+                        export_data(df, export_format)
                 except Exception as e:
                     #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
