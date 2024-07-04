@@ -696,8 +696,8 @@ if query:
                 except Exception as e:
                     #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
-                if st.button('Export Data'):
-                        export_data(df, export_format)
+            if st.button('Export Data'):
+                export_data(df, export_format)
         else:
             if action not in ["show data", "describe", "filter", "plot", "count rows", 
                     "maximum", "minimum", "average", "sum", "count value", "missing values", 
