@@ -11,6 +11,9 @@ import torch
 from transformers import BertForSequenceClassification, BertTokenizer,AutoTokenizer
 from sklearn.preprocessing import LabelEncoder
 import re
+import json
+import pickle as pq
+from collections import Counter
 
 expander_content = """
 
@@ -47,7 +50,6 @@ expander_content = """
      - This calculates the rolling average with a window of 3.
 """
 expander_content2 = """
-
 This Streamlit application provides a chatbot interface for interacting with datasets. Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
 
 **Features:**
@@ -69,6 +71,7 @@ This Streamlit application provides a chatbot interface for interacting with dat
 - **Lambda Function Application**: Apply custom Python functions to columns.
 """
 df = None
+@st.cache_resource
 def load_model_and_tokenizer():
     model_path = 'model_3'
     #tokenizer_path = 'tokenizer_3'
@@ -96,7 +99,7 @@ def predict_query(model, tokenizer, label_encoder, query, device):
         outputs = model(**inputs)
     predicted = torch.argmax(outputs.logits, dim=1).item()
     return label_encoder.inverse_transform([predicted])[0]
-
+@st.cache_data
 def get_image_base64(image_path):
     img = Image.open(image_path)
     buffered = BytesIO()
@@ -109,7 +112,6 @@ logo_base64 = get_image_base64("assets/logo.png")
 photo_base64 = get_image_base64("assets/bot.png")
 
 CSS_SELECTOR = '.stApp'
-
 st.markdown(
     f"""
     <style>
@@ -172,18 +174,45 @@ with st.expander("About"):
         """,
         unsafe_allow_html=True
     )
-uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx'])
+
+custom_css = """
+<style>
+    div[data-testid="stFileUploader"] {
+        font-size: 20px;
+    }
+    div[data-testid="stFileUploader"] label p {
+        font-size: 20px;
+        padding: 0px;
+    }
+    div[data-testid="stTextArea"] textarea {
+        font-size: 20px;
+    }
+    div[data-testid="stTextArea"] label {
+        font-size: 24px;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx','json','parquet'])
 
 def remove_spaces_from_columns(df):
     return df.rename(columns=lambda x: x.replace(' ', '_'))
 
+@st.cache_data
 def load_dataset(file):
-    if file.type == "text/csv":
+    if file.name.endswith('.csv'):
         return pd.read_csv(file)
-    elif file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+    elif file.name.endswith('.xlsx'):
         return pd.read_excel(file)
+    elif file.name.endswith('.json'):
+        return pd.read_json(file)
+    elif file.name.endswith('.parquet'):
+        return pq.read_table(file).to_pandas()
     else:
+        #st.error("Unsupported file format")
+        st.markdown(f"<p style='font-size: 20px; text-align: center;'>Unsupported file format.</p>", unsafe_allow_html=True)
         return None
+
 if uploaded_file is not None:
     try:
         df = load_dataset(uploaded_file)
@@ -210,7 +239,9 @@ model, tokenizer, label_encoder, device = load_model_and_tokenizer()
 
 # b1, b2 = st.columns([5, 1])
 # with b1:
-query = st.text_area("🗣️ Chat with Data", key="query_input")
+st.markdown(f"<p style='font-size: 20px; text-align: left;'>🗣️ Chat with Data</p>", unsafe_allow_html=True)
+st.markdown(custom_css, unsafe_allow_html=True)
+query = st.text_area("", key="query_input")
 # with b2:
 #     st.markdown("<br><br>", unsafe_allow_html=True)
 #     submit_button = st.button("Enter", key="submit")
@@ -341,7 +372,7 @@ def apply_filter(df, column, value):
             return df[df[column].astype(str).str.contains(value, case=False, na=False)]
     
 def count_value(df, query):
-    column,col2,v=extractor(query, df)
+    column,_,_=extractor(query, df)
     if column is None:
         return f"Column not found in file. Available columns are: {', '.join(df.columns)}"
     value=ex(query,df,column)
