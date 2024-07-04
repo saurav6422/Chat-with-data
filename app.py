@@ -686,18 +686,24 @@ if query:
                     """,
                     unsafe_allow_html=True
                 )
-            custom_func = st.text_area("Enter Custom Function (e.g., lambda x: x*2)")
+            custom_func = st.text_area("Enter Custom Function (e.g., lambda x: x*2)")           
+            if 'function_applied' not in st.session_state:
+                st.session_state.function_applied = False       
+            if 'modify_df' not in st.session_state:
+                st.session_state.modify_df = None
             if st.button("Apply Function"):
                 try:
                     df[column] = df[column].apply(eval(custom_func))
-                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong>successfully.</p>", unsafe_allow_html=True)
+                    st.session_state.function_applied = True
+                    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Function applied to <strong>{column}</strong> successfully.</p>", unsafe_allow_html=True)
+                    st.session_state.modify_df = df.copy()
                     st.dataframe(df.head())
-                    export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
-                    if st.button('Export Data'):
-                        export_data(df, export_format)
                 except Exception as e:
-                    #st.write(f"Error applying function: {e}")
                     st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error applying function.</p>", unsafe_allow_html=True)
+            if st.session_state.function_applied:
+                export_format = st.selectbox("Export format", ['CSV', 'Excel', 'JSON'])
+                if st.button('Export Data'):
+                    export_data(st.session_state.modify_df, export_format)
         else:
             if action not in ["show data", "describe", "filter", "plot", "count rows", 
                     "maximum", "minimum", "average", "sum", "count value", "missing values", 
