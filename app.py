@@ -1,18 +1,16 @@
-import os
 import streamlit as st
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 from transformers import pipeline
 from PIL import Image
 import base64
 from io import BytesIO
 import torch
-from transformers import BertForSequenceClassification, BertTokenizer,AutoTokenizer
+from transformers import BertForSequenceClassification, AutoTokenizer
 from sklearn.preprocessing import LabelEncoder
 import re
-import json
 import pickle as pq
+import plotly.express as px
+import plotly.graph_objects as go
 
 expander_content = """
 
@@ -236,14 +234,9 @@ if uploaded_file is not None:
 
 model, tokenizer, label_encoder, device = load_model_and_tokenizer()
 
-# b1, b2 = st.columns([5, 1])
-# with b1:
 st.markdown(f"<p style='font-size: 20px; text-align: left;'>🗣️ Chat with Data</p>", unsafe_allow_html=True)
 st.markdown(custom_css, unsafe_allow_html=True)
 query = st.text_area("", key="query_input")
-# with b2:
-#     st.markdown("<br><br>", unsafe_allow_html=True)
-#     submit_button = st.button("Enter", key="submit")
 
 def rename_column(dataframe, old_col_name, new_col_name):
     dataframe.rename(columns={old_col_name: new_col_name}, inplace=True)
@@ -292,7 +285,6 @@ def ex(query, df, col1):
     return None
 
 def create_plot(dataframe, plot_type, x_col, y_col=None):
-    plt.figure(figsize=(10, 6))
     if x_col is None:
         st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{x_col}' in the dataset.</p>", unsafe_allow_html=True)
         return
@@ -301,39 +293,30 @@ def create_plot(dataframe, plot_type, x_col, y_col=None):
         if y_col is None:
             st.markdown(f"<p style='font-size: 20px; text-align: center;'>No matching column found for '{y_col}' in the dataset.</p>", unsafe_allow_html=True)
             return
-
+    
     if plot_type == "scatter":
-        sns.scatterplot(data=dataframe, x=x_col, y=y_col)
+        fig = px.scatter(dataframe, x=x_col, y=y_col)
     elif plot_type == "line":
-        sns.lineplot(data=dataframe, x=x_col, y=y_col)
+        fig = px.line(dataframe, x=x_col, y=y_col)
     elif plot_type == "histogram":
-        sns.histplot(data=dataframe[x_col])
+        fig = px.histogram(dataframe, x=x_col)
     elif plot_type == "box":
-        sns.boxplot(data=dataframe, x=x_col, y=y_col)
+        fig = px.box(dataframe, x=x_col, y=y_col)
     elif plot_type == "bar":
-        sns.barplot(data=dataframe, x=x_col, y=y_col)
+        fig = px.bar(dataframe, x=x_col, y=y_col)
     elif plot_type == "pie":
         pie_data = dataframe[x_col].value_counts()
-        plt.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%')
+        fig = px.pie(values=pie_data.values, names=pie_data.index)
     
-    plt.title(f"{plot_type.capitalize()} Plot of {x_col}" + (f" and {y_col}" if y_col else ""))
-    plt.xlabel(x_col)
-    if y_col:
-        plt.ylabel(y_col)
-    
-    plot_buffer = BytesIO()
-    plt.savefig(plot_buffer, format='png')
-    plot_buffer.seek(0)
-    plot_base64 = base64.b64encode(plot_buffer.getvalue()).decode('utf-8')
-    st.pyplot(plt)
-    st.download_button(
-        label="Download Plot",
-        data=plot_base64,
-        file_name=f"{plot_type}_plot.png",
-        mime="image/png"
+    fig.update_layout(
+        xaxis_title=x_col,
+        yaxis_title=y_col if y_col else "",
     )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Plot {plot_type.capitalize()} chart created using column(s): {x_col}" + (f" and {y_col}" if y_col else "") + "</p>", unsafe_allow_html=True)
 
-    st.markdown(f"<p style='font-size: 20px; text-align: center;'>Plot created using column(s): {x_col}" + (f" and {y_col}" if y_col else "") + "</p>", unsafe_allow_html=True)
 
 
 def apply_filter(df, column, value):
@@ -402,7 +385,6 @@ def export_data(df, export_format):
     else:
         st.error("Unsupported format.")
 
-# if submit_button:
 if query:
     if df is None:
         st.markdown(f"<p style='font-size: 20px; text-align: center;'>No dataset loaded. Please upload a file first.</p>", unsafe_allow_html=True)
@@ -613,23 +595,32 @@ if query:
                 numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
                 numeric_df = df[numeric_cols]
                 corr_matrix = numeric_df.corr()
-                plt.figure(figsize=(10, 6))
-                sns.heatmap(corr_matrix, annot=True, cmap="coolwarm")
-                plot_buffer = BytesIO()
-                plt.savefig(plot_buffer, format='png')
-                plot_buffer.seek(0)
-                plot_base64 = base64.b64encode(plot_buffer.getvalue()).decode('utf-8')
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Heatmap : </p>", unsafe_allow_html=True)
-                st.pyplot(plt)
-                st.download_button(
-                    label="Download Plot",
-                    data=plot_base64,
-                    file_name=f"heatmap.png",
-                    mime="image/png"
+                fig = px.imshow(corr_matrix, 
+                                x=corr_matrix.columns, 
+                                y=corr_matrix.columns, 
+                                color_continuous_scale="RdBu_r",
+                                aspect="auto",
+                                title="Correlation Heatmap")
+
+                fig.update_layout(
+                    xaxis_title="Features",
+                    yaxis_title="Features",
+                    width=800,
+                    height=800
                 )
+                for i, row in enumerate(corr_matrix.values):
+                    for j, value in enumerate(row):
+                        fig.add_annotation(
+                            x=corr_matrix.columns[j],
+                            y=corr_matrix.index[i],
+                            text=f"{value:.2f}",
+                            showarrow=False,
+                            font=dict(color="white" if abs(value) > 0.5 else "black")
+                        )
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Interactive Heatmap:</p>", unsafe_allow_html=True)
             except Exception as e:
-                #st.write(f"Error creating heatmap: {e}")
-                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating Heatmap.</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='font-size: 20px; text-align: center;'>Error creating Heatmap: {str(e)}</p>", unsafe_allow_html=True)
         elif action == "concat data":
             uploaded_file_2 = st.file_uploader("Choose a file to concatenate", type=['csv', 'xlsx'])
             if uploaded_file_2 is not None:
