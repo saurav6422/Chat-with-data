@@ -42,9 +42,7 @@ https://chat-with-data-saurav6422.streamlit.app/
 ## Requirements
 
 - Python 3.7+
-- Streamlit
-- Pandas
-- Pytorch
+- requirements.txt
 
 ## Installation
 
