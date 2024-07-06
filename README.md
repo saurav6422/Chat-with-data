@@ -2,8 +2,9 @@
 
 This repository contains a Python script that performs various data operations using Streamlit and Pandas.
 The Application provides a chatbot interface for interacting with datasets. 
-Users can upload their data files (CSV or Excel) and interact with the data using natural language queries.
+Users can upload their data files (CSV, Excel, Json, Parquet) and interact with the data using natural language queries.
 note: Made for ECl Coal mining company .
+
 ## Table of Contents
 
 - [Link](#link)
@@ -90,6 +91,7 @@ This project is licensed under the GNU General Public License v2.0. See the [LIC
 - [Pandas](https://pandas.pydata.org/)
 - [PyTorch](https://pytorch.org/)
 - [sklearn](https://scikit-learn.org/stable/index.html)
+- [Hugging Face](https://huggingface.co/)
 - [Eastern Coalfields](https://www.easterncoal.nic.in/)
 
 ## Contact
