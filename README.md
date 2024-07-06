@@ -74,7 +74,7 @@ https://chat-with-data-saurav6422.streamlit.app/
 - `model_3` : Trained model.
 - `tokenizer_3` : Tokens.
 - `assets` : assets for the website.
-- `dataset` : contains the queries.csv used as label loader
+- `dataset` : contains the queries.csv used as label loader.
 
 ## Example Queries
 
