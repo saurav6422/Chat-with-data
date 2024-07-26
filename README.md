@@ -21,9 +21,7 @@ note: Made for ECl Coal mining company .
 ## Link
 
 Website link :
-https://chat-with-data-saurav6422.streamlit.app/
-
-## Features
+https://chat-with-data-saurav6422.streamlit.app/{free limit reached :(}
 
 - Display and describe data
 - Filter data based on conditions
